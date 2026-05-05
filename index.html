@@ -627,9 +627,14 @@
 
             letters.forEach((l, i) => {
                 const offset = i - mid;
+                const t = mid === 0 ? 0 : offset / mid;
+
                 const x = offset * sstrength * -10;
-                const y = (1 - Math.cos((offset / mid) * Math.PI / 2)) * radius * -0.35;
-                const angle = offset * sstrength * -12;
+                const y = (1 - Math.cos(t * Math.PI / 2)) * radius * -0.35;
+
+                // rotate letters along the curve tangent.
+                const angle = t * sstrength * -35;
+
                 l.style.transform = `
                     translate(${x}px, ${y}px)
                     rotate(${angle}deg)
