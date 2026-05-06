@@ -380,8 +380,11 @@
                         innerSpan.innerText = char;
 
                         // ПРИМЕНЯЕМ МАСШТАБ К СТИЛЯМ
-                        innerSpan.style.fontSize = (130 * renderScale) + 'px';
-                        innerSpan.style.webkitTextStroke = (5 * renderScale) + 'px white';
+                        const baseFontSize = 130;
+                        const currentFontSize = baseFontSize * renderScale;
+
+                        innerSpan.style.fontSize = currentFontSize + 'px';
+                        innerSpan.style.webkitTextStroke = (baseFontSize / 26) * renderScale + 'px white';
                         innerSpan.style.textShadow = `0px ${8 * renderScale}px ${5 * renderScale}px rgba(0,0,0,0.3)`;
 
                         const rot = (Math.random() - 0.5) * 12;
@@ -405,21 +408,66 @@
                 textLayer.appendChild(lineDiv);
             });
 
+            // --- УЛУЧШЕННОЕ АВТОМАСШТАБИРОВАНИЕ ---
+            const checkAndScale = () => {
+                let maxLineWidth = 0;
+                const lines = textLayer.querySelectorAll('.line');
+                lines.forEach(line => {
+                    if (line.clientWidth > maxLineWidth) maxLineWidth = line.clientWidth;
+                });
+
+                const safeWidth = board.clientWidth - 80; // Отступы по бокам
+
+                if (maxLineWidth > safeWidth && maxLineWidth > 0) {
+                    const ratio = safeWidth / maxLineWidth;
+                    const currentBase = parseFloat(inputSize.value);
+                    const baseSize = Math.floor(currentBase * ratio);
+                    
+                    textLayer.querySelectorAll('.letter-inner').forEach(el => {
+                        const newSize = baseSize * renderScale;
+                        el.style.fontSize = newSize + 'px';
+                        el.style.webkitTextStroke = ((baseSize / 26) * renderScale) + 'px white'; // Уменьшаем обводку вместе с текстом
+                    });
+                    
+                    inputSize.value = baseSize;
+                    sizeValue.innerText = baseSize + 'px';
+                }
+            };
+
+            // Запускаем проверку сразу и после загрузки шрифтов
+            checkAndScale();
+            //let safety = 0;
+            //while (textLayer.scrollWidth > board.clientWidth - 40 && safety < 10) {
+            //    const current = parseFloat(inputSize.value);
+            //    const next = current * 0.9;
+            //    inputSize.value = next;
+            //    sizeValue.innerText = Math.round(next) + 'px';
+//
+            //    textLayer.querySelectorAll('.letter-inner').forEach(el => {
+            //        const newSize = next * renderScale;
+            //        el.style.fontSize = newSize + 'px';
+            //        el.style.webkitTextStroke = (newSize / 26) + 'px white';
+            //    });
+//
+            //    safety++;
+            //}
+            document.fonts.ready.then(checkAndScale);
+
             if(selectedElement) selectedElement.classList.remove('selected');
             selectedElement = null;
 
             window.addEventListener('load', () => {
                 document.fonts.ready.then(() => {
                     generateText();
-                    // Даем браузеру долю секунды на отрисовку
                     setTimeout(scaleBoard, 100);
                 });
             });
-            inputSize.value = 130;
-            sizeValue.innerText = '130px';
+            
+            // Обновляем ползунки на новый (или стандартный) размер
             inputCurve.value = 0;
             inputCurve.disabled = true;
             curveValue.innerText = '0';
+
         }
 
         // Первичная генерация
@@ -630,7 +678,8 @@
                 const t = mid === 0 ? 0 : offset / mid;
 
                 const x = offset * sstrength * -10;
-                const y = (1 - Math.cos(t * Math.PI / 2)) * radius * -0.35;
+                //const y = (1 - Math.cos(t * Math.PI / 2)) * radius * -0.35;
+                const y = offset * offset * sstrength * -10;
 
                 // rotate letters along the curve tangent.
                 const angle = t * sstrength * -35;
@@ -745,35 +794,49 @@
 
 
         // --- ФОН ---
-        // --- ФОН ---
+        // --- ФОН И БУФЕР ОБМЕНА ---
+        // Общая функция для загрузки картинки
+        function loadBackgroundImage(file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    // Устанавливаем размеры холста строго по размеру загруженной картинки (любые пропорции)
+                    board.style.width = img.width + 'px';
+                    board.style.height = img.height + 'px';
+                    board.style.backgroundImage = `url('${event.target.result}')`;
+
+                    // Пересоздаем текст с учетом новых пропорций
+                    generateText();
+
+                    // Ждем обновления DOM перед масштабированием рабочей зоны
+                    requestAnimationFrame(() => {
+                        scaleBoard();
+                    });
+                };
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+
+        // Загрузка через кнопку
         inputBg.addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const img = new Image();
-                    img.onload = function() {
-                        const newWidth = Math.max(1280, img.width);
-                        const newHeight = Math.max(720, img.height);
-
-                        // Применяем размеры напрямую
-                        board.style.width = newWidth + 'px';
-                        board.style.height = newHeight + 'px';
-                        board.style.backgroundImage = `url('${event.target.result}')`;
-
-                        // Генерируем текст под новые размеры
-                        generateText();
-
-                        // Ждем, пока DOM обновится, и только потом масштабируем
-                        requestAnimationFrame(() => {
-                            scaleBoard();
-                        });
-                    };
-                    img.src = event.target.result;
-                }
-                reader.readAsDataURL(file);
-            }
+            if (file) loadBackgroundImage(file);
             scaleBoard();
+        });
+
+        // Вставка изображения напрямую из буфера обмена (Ctrl+V)
+        document.addEventListener('paste', (e) => {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let i = 0; i < items.length; i++) {
+                // Ищем только изображения (игнорируем текст)
+                if (items[i].kind === 'file' && items[i].type.startsWith('image/')) {
+                    const file = items[i].getAsFile();
+                    loadBackgroundImage(file);
+                    break;
+                }
+            }
         });
 
         // --- ЭКСПОРТ (СОХРАНЕНИЕ) ---
@@ -867,17 +930,14 @@
             const s = parseFloat(board.dataset.currentScale) || 1;
             const finalSize = newBaseSize * s;
 
-            // Применяем размер ко всем буквам внутри выделения
             const targets = selectedElement.classList.contains('letter-inner')
                             ? [selectedElement]
                             : selectedElement.querySelectorAll('.letter-inner');
 
             targets.forEach(el => {
                 el.style.fontSize = finalSize + 'px';
-
-                // Опционально: можно также пропорционально менять обводку,
-                // если хочешь, чтобы она не казалась слишком тонкой на огромных буквах
-                // el.style.webkitTextStroke = (finalSize / 26) + 'px white';
+                // Автоматически меняем обводку при ручном изменении размера
+                el.style.webkitTextStroke = ((newBaseSize / 26) * s) + 'px white';
             });
         });
 
