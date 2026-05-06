@@ -74,7 +74,7 @@
         }
 
         button:hover { background-color: #c0392b; }
-        
+
         #btn-generate { background-color: #27ae60; }
         #btn-generate:hover { background-color: #2ecc71; }
 
@@ -105,7 +105,7 @@
             left: 50%;
             transform: translate(-50%, -50%); /* Центрируем по центру контейнера */
             overflow: hidden;
-            box-sizing: border-box; 
+            box-sizing: border-box;
             box-shadow: none; /* Убедись, что тут нет тени */
         }
 
@@ -246,7 +246,7 @@
     <!-- Панель управления -->
     <div id="sidebar">
         <h2>Настройки</h2>
-        
+
         <div>
             <label>Текст надписи:</label>
             <textarea id="input-text">Чужие
@@ -281,10 +281,17 @@
             <span id="size-value" style="font-size: 0.8rem;">130px</span>
         </div>
 
+        <div style="border-top: 1px solid #7f8c8d; padding-top: 15px;">
+            <label>Сферический изгиб текста:</label>
+            <input type="range" id="input-curve" min="-400" max="400" value="0" disabled>
+            <span id="curve-value" style="font-size: 0.8rem;">0</span>
+            <small style="color: #bdc3c7; font-size: 0.75rem;">(Доступно для слова или строки)</small>
+        </div>
+
         <div style="flex-grow: 1;"></div>
 
         <button id="btn-export">Сохранить картинку</button>
-        
+
         <footer>
             Источник шрифта: <a href="https://www.youtube.com/watch?v=TQAEOQwCGQM" target="_blank">Ссылка</a>
         </footer>
@@ -322,14 +329,16 @@
 
         const inputSize = document.getElementById('input-size');
         const sizeValue = document.getElementById('size-value');
+        const inputCurve = document.getElementById('input-curve');
+        const curveValue = document.getElementById('curve-value');
 
-        let selectedElement = null; 
+        let selectedElement = null;
         // Запрещаем стандартное браузерное перетаскивание (чтобы не было "призраков")
         document.addEventListener('dragstart', (e) => e.preventDefault());
 
         // Генерация текста
         function generateText() {
-            scaleBoard(); 
+            scaleBoard();
             const text = inputText.value;
             const lines = text.split('\n');
 
@@ -369,7 +378,7 @@
                         const innerSpan = document.createElement('span');
                         innerSpan.className = 'letter-inner';
                         innerSpan.innerText = char;
-                        
+
                         // ПРИМЕНЯЕМ МАСШТАБ К СТИЛЯМ
                         innerSpan.style.fontSize = (130 * renderScale) + 'px';
                         innerSpan.style.webkitTextStroke = (5 * renderScale) + 'px white';
@@ -395,22 +404,22 @@
                 });
                 textLayer.appendChild(lineDiv);
             });
-            
+
             if(selectedElement) selectedElement.classList.remove('selected');
             selectedElement = null;
 
-            if (wordDiv.dataset.radius) {
-                applyBend(wordDiv);
-            }
             window.addEventListener('load', () => {
                 document.fonts.ready.then(() => {
                     generateText();
                     // Даем браузеру долю секунды на отрисовку
-                    setTimeout(scaleBoard, 100); 
+                    setTimeout(scaleBoard, 100);
                 });
             });
             inputSize.value = 130;
             sizeValue.innerText = '130px';
+            inputCurve.value = 0;
+            inputCurve.disabled = true;
+            curveValue.innerText = '0';
         }
 
         // Первичная генерация
@@ -434,7 +443,7 @@
             }
             if (e.target.classList.contains('bend-handle')) {
                 e.preventDefault();
-                if (!selectedElement.classList.contains('word') && 
+                if (!selectedElement.classList.contains('word') &&
                     !selectedElement.classList.contains('line')) {
                     return;
                 }
@@ -443,8 +452,8 @@
 
                 bendStartY = e.clientY;
 
-                startRadius = bendTarget.dataset.radius 
-                    ? parseFloat(bendTarget.dataset.radius) 
+                startRadius = bendTarget.dataset.radius
+                    ? parseFloat(bendTarget.dataset.radius)
                     : 0;
 
                 return;
@@ -461,8 +470,8 @@
 
                 startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
 
-                startRotation = rotateTarget.dataset.rotation 
-                    ? parseFloat(rotateTarget.dataset.rotation) 
+                startRotation = rotateTarget.dataset.rotation
+                    ? parseFloat(rotateTarget.dataset.rotation)
                     : 0;
 
                 return;
@@ -495,7 +504,7 @@
             // Ищем цель в зависимости от режима (буква, слово или строка)
             let target = e.target.closest('.' + dragMode);
 
-            
+
 
             // Если кликнули по букве, но режим "слово", e.target все равно будет внутри
             if (target && target.closest('#board')) {
@@ -513,7 +522,7 @@
                 initialY = dragTarget.dataset.y ? parseFloat(dragTarget.dataset.y) : 0;
             }
 
-            
+
         });
 
         document.addEventListener('mousemove', (e) => {
@@ -527,6 +536,8 @@
 
                 bendTarget.dataset.radius = radius;
 
+                inputCurve.value = Math.round(radius);
+                curveValue.innerText = Math.round(radius);
                 applyBend(bendTarget);
 
                 return;
@@ -543,7 +554,7 @@
                 return;
             }
             if (!isDragging || !dragTarget) return;
-            
+
             const dx = e.clientX - startX;
             const dy = e.clientY - startY;
 
@@ -552,7 +563,7 @@
                 isClick = false;
             }
 
-            // Так как холст может быть масштабирован через CSS (zoom), 
+            // Так как холст может быть масштабирован через CSS (zoom),
             // нужно учитывать масштаб для точного перемещения мышью
             const scale = getBoardScale();
 
@@ -616,9 +627,14 @@
 
             letters.forEach((l, i) => {
                 const offset = i - mid;
+                const t = mid === 0 ? 0 : offset / mid;
+
                 const x = offset * sstrength * -10;
-                const y = offset * offset * sstrength * -10;
-                const angle = offset * sstrength * 0;
+                const y = (1 - Math.cos(t * Math.PI / 2)) * radius * -0.35;
+
+                // rotate letters along the curve tangent.
+                const angle = t * sstrength * -35;
+
                 l.style.transform = `
                     translate(${x}px, ${y}px)
                     rotate(${angle}deg)
@@ -650,7 +666,7 @@
             // Создаем верхнюю ручку (вращение)
             const handle = document.createElement('div');
             handle.className = 'rotation-handle';
-            
+
             // Масштабируем размеры ручки
             handle.style.width = (14 * s) + 'px';
             handle.style.height = (14 * s) + 'px';
@@ -662,7 +678,7 @@
             // Создаем нижнюю ручку (изгиб)
             const bendHandle = document.createElement('div');
             bendHandle.className = 'bend-handle';
-            
+
             // Масштабируем размеры ручки
             bendHandle.style.width = (14 * s) + 'px';
             bendHandle.style.height = (14 * s) + 'px';
@@ -680,6 +696,12 @@
             const baseSize = Math.round(currentFontSize / se);
             inputSize.value = baseSize;
             sizeValue.innerText = baseSize + 'px';
+
+            const canBend = el.classList.contains('word') || el.classList.contains('line');
+            const currentRadius = canBend ? Math.round(parseFloat(el.dataset.radius) || 0) : 0;
+            inputCurve.disabled = !canBend;
+            inputCurve.value = currentRadius;
+            curveValue.innerText = currentRadius;
         }
 
         function deselectAll() {
@@ -692,6 +714,10 @@
 
             const oldHandleBend = document.querySelector('.bend-handle');
             if (oldHandleBend) oldHandleBend.remove();
+
+            inputCurve.value = 0;
+            inputCurve.disabled = true;
+            curveValue.innerText = '0';
         }
 
         function applyTransform(el) {
@@ -729,12 +755,12 @@
                     img.onload = function() {
                         const newWidth = Math.max(1280, img.width);
                         const newHeight = Math.max(720, img.height);
-                        
+
                         // Применяем размеры напрямую
                         board.style.width = newWidth + 'px';
                         board.style.height = newHeight + 'px';
                         board.style.backgroundImage = `url('${event.target.result}')`;
-                        
+
                         // Генерируем текст под новые размеры
                         generateText();
 
@@ -747,32 +773,32 @@
                 }
                 reader.readAsDataURL(file);
             }
-            scaleBoard(); 
+            scaleBoard();
         });
 
         // --- ЭКСПОРТ (СОХРАНЕНИЕ) ---
         btnExport.addEventListener('click', () => {
             deselectAll(); // Убираем рамки выделения
-            
+
             // Запоминаем текущие стили для возврата
             const originalTransform = board.style.transform;
             const originalTop = board.style.top;
             const originalLeft = board.style.left;
-            
+
             // Сбрасываем позиционирование для html2canvas
-            board.style.transform = 'none'; 
+            board.style.transform = 'none';
             board.style.top = '0';
             board.style.left = '0';
-            
+
             // Получаем РЕАЛЬНЫЕ размеры блока (хоть из CSS, хоть инлайновые)
             const exportWidth = board.offsetWidth;
             const exportHeight = board.offsetHeight;
-            
+
             html2canvas(board, {
-                scale: 1, 
+                scale: 1,
                 // Если хочешь, чтобы при отсутствии картинки был виден цвет из CSS,
                 // оставь backgroundColor: null, библиотека сама его подтянет.
-                backgroundColor: null, 
+                backgroundColor: null,
                 useCORS: true,
                 logging: false,
                 width: exportWidth,
@@ -784,14 +810,14 @@
                 link.download = 'smeshariki_title.png';
                 link.href = canvas.toDataURL('image/png');
                 link.click();
-                
+
                 // Возвращаем всё назад для редактора
                 board.style.top = originalTop || '50%';
                 board.style.left = originalLeft || '50%';
                 board.style.transform = originalTransform;
-                
+
                 // На всякий случай пересчитываем масштаб
-                scaleBoard(); 
+                scaleBoard();
             });
         });
 
@@ -803,17 +829,17 @@
 
             const cw = container.clientWidth;
             const ch = container.clientHeight;
-            
+
             // Используем offsetWidth/Height — они всегда показывают актуальный размер блока
             const bw = board.offsetWidth || 1280;
             const bh = board.offsetHeight || 720;
-            
+
             const scaleX = (cw - 40) / bw;
             const scaleY = (ch - 40) / bh;
-            
+
             // Находим минимальный масштаб, чтобы вписать всё в экран
             const scale = Math.min(scaleX, scaleY, 1);
-            
+
             // Применяем масштаб с сохранением центровки
             board.style.transform = `translate(-50%, -50%) scale(${scale})`;
         }
@@ -821,29 +847,37 @@
         function getBoardScale() {
             const style = window.getComputedStyle(board);
             const matrix = new DOMMatrixReadOnly(style.transform);
-            return matrix.m11 || 1; 
+            return matrix.m11 || 1;
         }
+
+        inputCurve.addEventListener('input', (e) => {
+            if (!selectedElement || (!selectedElement.classList.contains('word') && !selectedElement.classList.contains('line'))) return;
+
+            selectedElement.dataset.radius = e.target.value;
+            curveValue.innerText = e.target.value;
+            applyBend(selectedElement);
+        });
 
         inputSize.addEventListener('input', (e) => {
             if (!selectedElement) return;
 
             const newBaseSize = e.target.value;
             sizeValue.innerText = newBaseSize + 'px';
-            
+
             const s = parseFloat(board.dataset.currentScale) || 1;
             const finalSize = newBaseSize * s;
 
             // Применяем размер ко всем буквам внутри выделения
-            const targets = selectedElement.classList.contains('letter-inner') 
-                            ? [selectedElement] 
+            const targets = selectedElement.classList.contains('letter-inner')
+                            ? [selectedElement]
                             : selectedElement.querySelectorAll('.letter-inner');
 
             targets.forEach(el => {
                 el.style.fontSize = finalSize + 'px';
-                
-                // Опционально: можно также пропорционально менять обводку, 
+
+                // Опционально: можно также пропорционально менять обводку,
                 // если хочешь, чтобы она не казалась слишком тонкой на огромных буквах
-                // el.style.webkitTextStroke = (finalSize / 26) + 'px white'; 
+                // el.style.webkitTextStroke = (finalSize / 26) + 'px white';
             });
         });
 
