@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Создатель заставок Смешариков</title>
+    <!-- Основной заголовок в поиске -->
+    <meta name="description" content="Бесплатный онлайн-конструктор заставок в стиле мультсериала Смешарики. Введите свой текст, выберите фон и скачайте готовую картинку.">
+
+    <!-- Ключевые слова -->
+    <meta name="keywords" content="смешарики, smeshariki, генератор названий, создать заставку, шрифт смешариков, кастомная заставка, смешарики логотип онлайн, серии смешариков, заставка смешариков, создать обложку, обложка серии, титры, создание титров, шаблон заставки, онлайн редактор, конструктор заставок, текст на картинке, обложка для видео, миниатюра, ютуб заставка, скачать картинку, png, hd, фон для заставки, фон для обложки, мультяшная надпись, дизайн заставки, персонажи смешариков, детская заставка, стиль смешариков">
+
+    <!-- Социальные сети (Open Graph) — чтобы ссылка красиво выглядела в Telegram/VK -->
+    <meta property="og:title" content="Создай свою заставку из Смешариков">
+    <meta property="og:description" content="Удобный редактор для создания названий серий со своим текстом.">
+    <meta property="og:type" content="website">
     <!-- Подключаем html2canvas для сохранения изображения -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
@@ -91,7 +101,17 @@
             padding: 20px;
             position: relative;
         }
-
+        .seo-title {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
         /* Сам холст (формат 16:9) */
         /* Сам холст */
         #board {
@@ -245,6 +265,7 @@
 
     <!-- Панель управления -->
     <div id="sidebar">
+        <h1 class="seo-title">Конструктор заставок Смешариков</h1>
         <h2>Настройки</h2>
 
         <div>
